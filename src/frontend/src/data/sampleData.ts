@@ -1,4 +1,4 @@
-import type { BreakingNewsItem, ImportantLink, Post } from "../backend.d";
+import type { BreakingNewsItem, ImportantLink, Post } from "../types";
 
 export const SAMPLE_POSTS: Post[] = [
   {

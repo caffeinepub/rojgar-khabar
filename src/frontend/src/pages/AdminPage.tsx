@@ -22,7 +22,10 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  CheckCircle2,
   FileText,
+  ImageIcon,
+  KeyRound,
   LayoutDashboard,
   Link as LinkIcon,
   Loader2,
@@ -32,12 +35,12 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Upload,
   X,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { ImportantLink, Post, PostInput } from "../backend.d";
 import { CATEGORIES } from "../data/sampleData";
 import { useAdminAuth } from "../hooks/useAdminAuth";
 import {
@@ -53,8 +56,13 @@ import {
   useUpdateImportantLink,
   useUpdatePost,
 } from "../hooks/useQueries";
+import type { ImportantLink, Post, PostInput } from "../types";
 
-type AdminSection = "posts" | "breaking-news" | "important-links";
+type AdminSection =
+  | "posts"
+  | "breaking-news"
+  | "important-links"
+  | "change-password";
 
 function PostForm({
   initial,
@@ -80,6 +88,30 @@ function PostForm({
     isPublished: initial?.isPublished ?? true,
   });
   const [tagsInput, setTagsInput] = useState((initial?.tags || []).join(", "));
+  const [imagePreview, setImagePreview] = useState<string>(
+    initial?.featuredImageUrl || "",
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setImagePreview(dataUrl);
+      setForm((f) => ({ ...f, featuredImageUrl: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setImagePreview("");
+    setForm((f) => ({ ...f, featuredImageUrl: "" }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,14 +161,14 @@ function PostForm({
           />
         </div>
         <div className="md:col-span-2">
-          <Label htmlFor="content">Content * (HTML supported)</Label>
+          <Label htmlFor="content">Content *</Label>
           <Textarea
             id="content"
             value={form.content}
             onChange={(e) =>
               setForm((f) => ({ ...f, content: e.target.value }))
             }
-            placeholder="Full post content (HTML allowed)"
+            placeholder="Post ka pura content yahan likhein..."
             rows={8}
             required
             data-ocid="post_form.editor"
@@ -170,18 +202,51 @@ function PostForm({
             data-ocid="post_form.input"
           />
         </div>
-        <div>
-          <Label htmlFor="featuredImageUrl">Featured Image URL</Label>
-          <Input
-            id="featuredImageUrl"
-            value={form.featuredImageUrl}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, featuredImageUrl: e.target.value }))
-            }
-            placeholder="https://..."
-            data-ocid="post_form.input"
+
+        {/* Featured Image Upload */}
+        <div className="md:col-span-2">
+          <Label>Featured Image</Label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageUpload}
+            data-ocid="post_form.upload_button"
           />
+          {imagePreview ? (
+            <div className="mt-1.5 relative inline-block">
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="max-h-48 max-w-full rounded border border-border object-cover"
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black/80 transition-colors"
+                data-ocid="post_form.delete_button"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="mt-1.5 w-full border-2 border-dashed border-border rounded-md py-8 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-accent hover:text-accent transition-colors cursor-pointer bg-muted/30"
+              data-ocid="post_form.dropzone"
+            >
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-6 h-6" />
+                <Upload className="w-5 h-5" />
+              </div>
+              <span className="text-sm font-medium">Click to upload image</span>
+              <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
+            </button>
+          )}
         </div>
+
         <div>
           <Label htmlFor="applyLink">Apply Link / Official URL</Label>
           <Input
@@ -736,8 +801,188 @@ function ImportantLinksManager() {
   );
 }
 
+function ChangePasswordManager({
+  changePassword,
+}: {
+  changePassword: (
+    current: string,
+    next: string,
+  ) => { success: boolean; error?: string };
+}) {
+  const [form, setForm] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+  });
+  const [status, setStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [isPending, setIsPending] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatus(null);
+
+    if (form.next !== form.confirm) {
+      setStatus({
+        type: "error",
+        message: "New password aur confirm password match nahi kar rahe",
+      });
+      return;
+    }
+    if (form.next.length < 6) {
+      setStatus({
+        type: "error",
+        message: "Naya password kam se kam 6 characters ka hona chahiye",
+      });
+      return;
+    }
+
+    setIsPending(true);
+    const result = changePassword(form.current, form.next);
+    setIsPending(false);
+
+    if (result.success) {
+      setStatus({
+        type: "success",
+        message: "Password successfully change ho gaya!",
+      });
+      setForm({ current: "", next: "", confirm: "" });
+    } else {
+      setStatus({
+        type: "error",
+        message: result.error || "Password change nahi hua",
+      });
+    }
+  };
+
+  return (
+    <div>
+      <h2 className="text-lg font-bold text-primary mb-4">Change Password</h2>
+      <div className="max-w-md">
+        <div className="portal-card p-5">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            data-ocid="change_password.form"
+          >
+            <div>
+              <Label htmlFor="cp-current">Current Password</Label>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="cp-current"
+                  type="password"
+                  value={form.current}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, current: e.target.value }));
+                    setStatus(null);
+                  }}
+                  placeholder="••••••••"
+                  className="pl-9"
+                  required
+                  autoComplete="current-password"
+                  data-ocid="change_password.current_input"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="cp-new">Naya Password</Label>
+              <div className="relative mt-1">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="cp-new"
+                  type="password"
+                  value={form.next}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, next: e.target.value }));
+                    setStatus(null);
+                  }}
+                  placeholder="Kam se kam 6 characters"
+                  className="pl-9"
+                  required
+                  autoComplete="new-password"
+                  data-ocid="change_password.new_input"
+                />
+              </div>
+              {form.next.length > 0 && form.next.length < 6 && (
+                <p className="text-xs text-destructive mt-1">
+                  Password kam se kam 6 characters ka hona chahiye
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="cp-confirm">Confirm Naya Password</Label>
+              <div className="relative mt-1">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="cp-confirm"
+                  type="password"
+                  value={form.confirm}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, confirm: e.target.value }));
+                    setStatus(null);
+                  }}
+                  placeholder="Password dobara likhein"
+                  className="pl-9"
+                  required
+                  autoComplete="new-password"
+                  data-ocid="change_password.confirm_input"
+                />
+              </div>
+              {form.confirm.length > 0 && form.next !== form.confirm && (
+                <p className="text-xs text-destructive mt-1">
+                  Passwords match nahi kar rahe
+                </p>
+              )}
+            </div>
+
+            {status && (
+              <div
+                className={`flex items-start gap-2 text-sm px-3 py-2.5 rounded-sm border ${
+                  status.type === "success"
+                    ? "text-green-700 bg-green-50 border-green-200"
+                    : "text-destructive bg-destructive/10 border-destructive/20"
+                }`}
+                role="alert"
+                data-ocid={
+                  status.type === "success"
+                    ? "change_password.success_state"
+                    : "change_password.error_state"
+                }
+              >
+                {status.type === "success" && (
+                  <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                )}
+                {status.message}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={
+                isPending || !form.current || !form.next || !form.confirm
+              }
+              className="bg-accent hover:bg-orange-dark text-white w-full justify-center"
+              data-ocid="change_password.submit_button"
+            >
+              {isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Password Update Karein
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminPage() {
-  const { isLoggedIn, login, logout } = useAdminAuth();
+  const { isLoggedIn, login, logout, changePassword } = useAdminAuth();
   const [section, setSection] = useState<AdminSection>("posts");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -852,6 +1097,11 @@ export function AdminPage() {
       label: "Important Links",
       icon: LinkIcon,
     },
+    {
+      id: "change-password" as AdminSection,
+      label: "Change Password",
+      icon: KeyRound,
+    },
   ];
 
   return (
@@ -901,6 +1151,9 @@ export function AdminPage() {
             {section === "posts" && <PostsManager />}
             {section === "breaking-news" && <BreakingNewsManager />}
             {section === "important-links" && <ImportantLinksManager />}
+            {section === "change-password" && (
+              <ChangePasswordManager changePassword={changePassword} />
+            )}
           </div>
         </div>
       </div>

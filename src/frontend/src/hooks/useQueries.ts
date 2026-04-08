@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  BreakingNewsItem,
-  ImportantLink,
-  Post,
-  PostInput,
-} from "../backend.d";
 import {
   SAMPLE_BREAKING_NEWS,
   SAMPLE_IMPORTANT_LINKS,
   SAMPLE_POSTS,
 } from "../data/sampleData";
+import type {
+  BreakingNewsItem,
+  ImportantLink,
+  Post,
+  PostInput,
+} from "../types";
 import { useActor } from "./useActor";
 
 export function useAllPosts() {

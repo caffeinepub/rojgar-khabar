@@ -172,11 +172,9 @@ export function PostDetailPage() {
 
             {/* Full Content */}
             <div className="portal-card p-5 mb-4">
-              <div
-                className="prose prose-sm max-w-none prose-headings:text-primary prose-headings:font-bold prose-a:text-accent prose-table:text-sm"
-                // biome-ignore lint/security/noDangerouslySetInnerHtml: safe CMS content
-                dangerouslySetInnerHTML={{ __html: post.content }}
-              />
+              <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                {post.content}
+              </div>
             </div>
 
             {/* Tags */}

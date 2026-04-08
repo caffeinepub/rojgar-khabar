@@ -1,37 +1,13 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
-import type { backendInterface } from "../backend";
-import { createActorWithConfig } from "../config";
-import { getSecretParameter } from "../utils/urlParams";
+import { useActor as useCaffeineActor } from "@caffeineai/core-infrastructure";
+import { createActor } from "../backend";
+import type { BackendActor } from "../types";
 
-const ACTOR_QUERY_KEY = "actor";
-export function useActor() {
-  const queryClient = useQueryClient();
-  const actorQuery = useQuery<backendInterface>({
-    queryKey: [ACTOR_QUERY_KEY],
-    queryFn: async () => {
-      const actor = await createActorWithConfig();
-      const adminToken = getSecretParameter("caffeineAdminToken") || "";
-      await actor._initializeAccessControlWithSecret(adminToken);
-      return actor;
-    },
-    staleTime: Number.POSITIVE_INFINITY,
-    enabled: true,
-  });
+type ActorResult = {
+  actor: BackendActor | null;
+  isFetching: boolean;
+};
 
-  useEffect(() => {
-    if (actorQuery.data) {
-      queryClient.invalidateQueries({
-        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
-      });
-      queryClient.refetchQueries({
-        predicate: (query) => !query.queryKey.includes(ACTOR_QUERY_KEY),
-      });
-    }
-  }, [actorQuery.data, queryClient]);
-
-  return {
-    actor: actorQuery.data || null,
-    isFetching: actorQuery.isFetching,
-  };
+export function useActor(): ActorResult {
+  const { actor, isFetching } = useCaffeineActor(createActor);
+  return { actor: actor as unknown as BackendActor | null, isFetching };
 }

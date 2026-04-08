@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, ExternalLink, Tag } from "lucide-react";
-import type { Post } from "../../backend.d";
 import { CATEGORIES } from "../../data/sampleData";
 import { useAllPosts, useImportantLinks } from "../../hooks/useQueries";
+import type { Post } from "../../types";
 
 function formatDate(publishedAt: bigint): string {
   const ms = Number(publishedAt) / 1000000;

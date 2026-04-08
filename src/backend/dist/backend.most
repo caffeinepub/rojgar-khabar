@@ -1,0 +1,76 @@
+// Version: 3.0.0
+type AccessControlState__758248659 =
+  {
+    var adminAssigned : Bool;
+    userRoles : Map__605269027<Principal, UserRole__717262347>
+  };
+type BreakingNewsItem__159798019 = {createdAt : Int; id : Text; text : Text};
+type BreakingNewsItem__871930376 = {createdAt : Int; id : Text; text : Text};
+type Data__791452850<K, V> =
+  {var count : Nat__490723111; kvs : [var ?(K, V)]};
+type ImportantLink__1037416530 =
+  {category : Text; id : Text; title : Text; url : Text};
+type ImportantLink__432067706 =
+  {category : Text; id : Text; title : Text; url : Text};
+type Internal__8484328<K, V> =
+  {children : [var ?Node__46230540<K, V>]; data : Data__791452850<K, V>};
+type Leaf__809889148<K, V> = {data : Data__791452850<K, V>};
+type Map__158565046<K, V> = Map__297112838<K, V>;
+type Map__297112838<K, V> =
+  {var root : Node__46230540<K, V>; var size : Nat__490723111};
+type Map__605269027<K, V> = Map__158565046<K, V>;
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type Node__46230540<K, V> =
+  {#internal : Internal__8484328<K, V>; #leaf : Leaf__809889148<K, V>};
+type Post__1060967480 =
+  {
+    applyLink : Text;
+    category : Text;
+    content : Text;
+    featuredImageUrl : Text;
+    id : Text;
+    isPublished : Bool;
+    publishedAt : Int;
+    summary : Text;
+    tags : [Text];
+    title : Text
+  };
+type Post__955439577 =
+  {
+    applyLink : Text;
+    category : Text;
+    content : Text;
+    featuredImageUrl : Text;
+    id : Text;
+    isPublished : Bool;
+    publishedAt : Int;
+    summary : Text;
+    tags : [Text];
+    title : Text
+  };
+type UserProfile__315128327 = {name : Text};
+type UserRole__717262347 = {#admin; #guest; #user};
+actor ({
+  in accessControlState : AccessControlState__758248659;
+  in breakingNews : Map__605269027<Text, BreakingNewsItem__159798019>;
+  in importantLinks : Map__605269027<Text, ImportantLink__1037416530>;
+  in posts : Map__605269027<Text, Post__1060967480>;
+  in userProfiles : Map__605269027<Principal, UserProfile__315128327>
+}, {
+  stable breakingNews :
+    {
+      var root : Node__46230540<Text, BreakingNewsItem__871930376>;
+      var size : Nat__490723111
+    };
+  stable importantLinks :
+    {
+      var root : Node__46230540<Text, ImportantLink__432067706>;
+      var size : Nat__490723111
+    };
+  stable posts :
+    {
+      var root : Node__46230540<Text, Post__955439577>;
+      var size : Nat__490723111
+    }
+}) ;

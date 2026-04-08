@@ -1,18 +1,13 @@
 import Text "mo:core/Text";
 import Time "mo:core/Time";
 import Map "mo:core/Map";
-import List "mo:core/List";
 import Iter "mo:core/Iter";
-import Runtime "mo:core/Runtime";
-import Nat "mo:core/Nat";
 import Order "mo:core/Order";
 import Array "mo:core/Array";
-import Principal "mo:core/Principal";
-import MixinAuthorization "authorization/MixinAuthorization";
-import MixinStorage "blob-storage/Mixin";
-import Store "blob-storage/Storage";
-import AccessControl "authorization/access-control";
+import Int "mo:core/Int";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
   module Post {
     public func compare(post1 : Post, post2 : Post) : Order.Order {
@@ -78,62 +73,22 @@ actor {
     isPublished : Bool;
   };
 
-  public type ImageUploadResult = {
-    url : Text;
-    size : Nat;
-  };
-
-  public type UserProfile = {
-    name : Text;
-  };
-
-  /// Core Components
+  /// Core Data Storage
   let posts = Map.empty<Text, Post>();
   let breakingNews = Map.empty<Text, BreakingNewsItem>();
   let importantLinks = Map.empty<Text, ImportantLink>();
-  let userProfiles = Map.empty<Principal, UserProfile>();
-
-  /// Blob & Image Storage Integration
-  include MixinStorage();
-
-  /// Role-based Access Control
-  let accessControlState = AccessControl.initState();
-  include MixinAuthorization(accessControlState);
-
-  /// User Profile Management
-  public query ({ caller }) func getCallerUserProfile() : async ?UserProfile {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can access profiles");
-    };
-    userProfiles.get(caller);
-  };
-
-  public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
-    if (caller != user and not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Can only view your own profile");
-    };
-    userProfiles.get(user);
-  };
-
-  public shared ({ caller }) func saveCallerUserProfile(profile : UserProfile) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can save profiles");
-    };
-    userProfiles.add(caller, profile);
-  };
 
   /// Posts Management
-  public query ({ caller }) func getAllPublishedPosts() : async [Post] {
+  public query func getAllPublishedPosts() : async [Post] {
     posts.values().toArray().filter(func(p) { p.isPublished }).sort();
   };
 
-  public query ({ caller }) func getPostsByCategory(category : Text) : async [Post] {
+  public query func getPostsByCategory(category : Text) : async [Post] {
     posts.values().toArray().filter(func(p) { p.category == category and p.isPublished }).sort(Post.compareByCategoryAndPublishedAt);
   };
 
-  public query ({ caller }) func searchPostsByTitle(searchTerm : Text) : async [Post] {
+  public query func searchPostsByTitle(searchTerm : Text) : async [Post] {
     let lowerSearch = searchTerm.toLower();
-
     posts.values().toArray().filter(
       func(p) {
         p.title.toLower().contains(#text lowerSearch) and p.isPublished
@@ -141,39 +96,45 @@ actor {
     ).sort();
   };
 
-  public shared ({ caller }) func createPost(post : PostInput) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can create posts");
-    };
+  public shared func createPost(post : PostInput) : async () {
     let newPost : Post = {
-      post with
+      id = post.id;
+      title = post.title;
+      summary = post.summary;
+      content = post.content;
+      category = post.category;
+      featuredImageUrl = post.featuredImageUrl;
+      applyLink = post.applyLink;
+      tags = post.tags;
       publishedAt = Time.now();
+      isPublished = post.isPublished;
     };
     posts.add(post.id, newPost);
   };
 
-  public shared ({ caller }) func updatePost(post : PostInput) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update posts");
-    };
+  public shared func updatePost(post : PostInput) : async () {
     let updatedPost : Post = {
-      post with
+      id = post.id;
+      title = post.title;
+      summary = post.summary;
+      content = post.content;
+      category = post.category;
+      featuredImageUrl = post.featuredImageUrl;
+      applyLink = post.applyLink;
+      tags = post.tags;
       publishedAt = Time.now();
+      isPublished = post.isPublished;
     };
     posts.add(post.id, updatedPost);
   };
 
-  public shared ({ caller }) func deletePost(postId : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete posts");
-    };
+  public shared func deletePost(postId : Text) : async () {
     posts.remove(postId);
   };
 
   /// Breaking News Management
-  public query ({ caller }) func getLatestBreakingNews() : async [BreakingNewsItem] {
+  public query func getLatestBreakingNews() : async [BreakingNewsItem] {
     let sortedBreakingNews = breakingNews.values().toArray().sort();
-
     let takeAmount = if (sortedBreakingNews.size() < 10) {
       sortedBreakingNews.size();
     } else {
@@ -187,48 +148,34 @@ actor {
     );
   };
 
-  public shared ({ caller }) func addBreakingNews(text : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can add breaking news");
-    };
+  public shared func addBreakingNews(text : Text) : async () {
+    let id = Time.now().toText();
     let newsItem : BreakingNewsItem = {
-      id = Time.now().toText();
+      id;
       text;
       createdAt = Time.now();
     };
     breakingNews.add(newsItem.id, newsItem);
   };
 
-  public shared ({ caller }) func deleteBreakingNews(newsId : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete breaking news");
-    };
+  public shared func deleteBreakingNews(newsId : Text) : async () {
     breakingNews.remove(newsId);
   };
 
   /// Important Links Management
-  public query ({ caller }) func getAllImportantLinks() : async [ImportantLink] {
+  public query func getAllImportantLinks() : async [ImportantLink] {
     importantLinks.values().toArray().sort(ImportantLink.compareByCategory);
   };
 
-  public shared ({ caller }) func createImportantLink(link : ImportantLink) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can create important links");
-    };
+  public shared func createImportantLink(link : ImportantLink) : async () {
     importantLinks.add(link.id, link);
   };
 
-  public shared ({ caller }) func updateImportantLink(link : ImportantLink) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update important links");
-    };
+  public shared func updateImportantLink(link : ImportantLink) : async () {
     importantLinks.add(link.id, link);
   };
 
-  public shared ({ caller }) func deleteImportantLink(linkId : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can delete important links");
-    };
+  public shared func deleteImportantLink(linkId : Text) : async () {
     importantLinks.remove(linkId);
   };
 };

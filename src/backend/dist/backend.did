@@ -1,0 +1,57 @@
+type PostInput = 
+ record {
+   applyLink: text;
+   category: text;
+   content: text;
+   featuredImageUrl: text;
+   id: text;
+   isPublished: bool;
+   publishedAt: int;
+   summary: text;
+   tags: vec text;
+   title: text;
+ };
+type Post = 
+ record {
+   applyLink: text;
+   category: text;
+   content: text;
+   featuredImageUrl: text;
+   id: text;
+   isPublished: bool;
+   publishedAt: int;
+   summary: text;
+   tags: vec text;
+   title: text;
+ };
+type ImportantLink = 
+ record {
+   category: text;
+   id: text;
+   title: text;
+   url: text;
+ };
+type BreakingNewsItem = 
+ record {
+   createdAt: int;
+   id: text;
+   "text": text;
+ };
+service : {
+  addBreakingNews: ("text": text) -> ();
+  createImportantLink: (link: ImportantLink) -> ();
+  createPost: (post: PostInput) -> ();
+  deleteBreakingNews: (newsId: text) -> ();
+  deleteImportantLink: (linkId: text) -> ();
+  deletePost: (postId: text) -> ();
+  /// Important Links Management
+  getAllImportantLinks: () -> (vec ImportantLink) query;
+  /// Posts Management
+  getAllPublishedPosts: () -> (vec Post) query;
+  /// Breaking News Management
+  getLatestBreakingNews: () -> (vec BreakingNewsItem) query;
+  getPostsByCategory: (category: text) -> (vec Post) query;
+  searchPostsByTitle: (searchTerm: text) -> (vec Post) query;
+  updateImportantLink: (link: ImportantLink) -> ();
+  updatePost: (post: PostInput) -> ();
+}
